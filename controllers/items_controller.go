@@ -1,12 +1,15 @@
 package controllers
 
 import (
-	"fmt"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/baglabs/bookstore_items-api/domain/items"
 	"github.com/baglabs/bookstore_items-api/services"
+	"github.com/baglabs/bookstore_items-api/utils/http_utils"
 	"github.com/baglabs/bookstore_oauth-go/oauth"
+	"github.com/baglabs/bookstore_utils-go/rest_errors"
 )
 
 var (
@@ -22,21 +25,35 @@ type itemsController struct{}
 
 func (c *itemsController) Create(w http.ResponseWriter, r *http.Request) {
 	if err := oauth.AuthenticateRequest(r); err != nil {
-		//TODO: Return error json to the user
+		http_utils.ResponseError(w, err)
 		return
 	}
 
-	item := items.Item{
-		Seller: oauth.GetCallerId(r),
-	}
+	var itemRequest items.Item
 
-	result, err := services.ItemsService.Create(item)
+	requestBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		//TODO: Return error json to the user
+		respErr := rest_errors.NewBadRequestError("invalid request body")
+		http_utils.ResponseError(w, respErr)
+		return
+	}
+	defer r.Body.Close()
+
+	if err := json.Unmarshal(requestBody, &itemRequest); err != nil {
+		respErr := rest_errors.NewBadRequestError("invalid item json body")
+		http_utils.ResponseError(w, respErr)
+		return
 	}
 
-	fmt.Println(result)
-	//TODO: Return created item as json with HTTP status 201 - Created.
+	itemRequest.Seller = oauth.GetClientId(r)
+
+	result, createErr := services.ItemsService.Create(itemRequest)
+	if createErr != nil {
+		http_utils.ResponseError(w, createErr)
+		return
+	}
+
+	http_utils.ResponseJson(w, http.StatusCreated, result)
 
 }
 
