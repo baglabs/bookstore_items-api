@@ -19,6 +19,7 @@ var (
 type esClientInterface interface {
 	SetClient(*elasticsearch.Client)
 	Index(string, interface{}) (*esapi.Response, error)
+	Get(string, string, string) (*esapi.Response, error)
 }
 
 type esClient struct {
@@ -53,6 +54,24 @@ func (c *esClient) Index(index string, doc interface{}) (*esapi.Response, error)
 
 	if err != nil {
 		log.Printf(fmt.Sprintf("error when trying to index document in index %s", index), err)
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (c *esClient) Get(index string, docType string, id string) (*esapi.Response, error) {
+	data := fmt.Sprintf(`{"query":{"match":{"_id":"%s"}}}`, id)
+	ctx := context.Background()
+	req := esapi.SearchRequest{
+		Index:        []string{index},
+		DocumentType: []string{docType},
+		Body:         bytes.NewReader([]byte(data)),
+	}
+	result, err := req.Do(ctx, c.client)
+
+	if err != nil {
+		log.Printf(fmt.Sprintf("error when trying to get id %s", id), err)
 		return nil, err
 	}
 

@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/baglabs/bookstore_items-api/domain/items"
 	"github.com/baglabs/bookstore_items-api/services"
 	"github.com/baglabs/bookstore_items-api/utils/http_utils"
 	"github.com/baglabs/bookstore_oauth-go/oauth"
 	"github.com/baglabs/bookstore_utils-go/rest_errors"
+	"github.com/gorilla/mux"
 )
 
 var (
@@ -65,5 +67,13 @@ func (c *itemsController) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *itemsController) Get(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	itemId := strings.TrimSpace(vars["id"])
+	item, err := services.ItemsService.Get(itemId)
+	if err != nil {
+		http_utils.ResponseError(w, err)
+		return
+	}
+	http_utils.ResponseJson(w, http.StatusOK, item)
 
 }
