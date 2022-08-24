@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/baglabs/bookstore_items-api/domain/items"
+	"github.com/baglabs/bookstore_items-api/domain/queries"
 	"github.com/baglabs/bookstore_items-api/services"
 	"github.com/baglabs/bookstore_items-api/utils/http_utils"
 	"github.com/baglabs/bookstore_oauth-go/oauth"
@@ -21,6 +22,7 @@ var (
 type itemsControllerInterface interface {
 	Create(http.ResponseWriter, *http.Request)
 	Get(http.ResponseWriter, *http.Request)
+	Search(http.ResponseWriter, *http.Request)
 }
 
 type itemsController struct{}
@@ -75,5 +77,30 @@ func (c *itemsController) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http_utils.ResponseJson(w, http.StatusOK, item)
+
+}
+
+func (c *itemsController) Search(w http.ResponseWriter, r *http.Request) {
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		apiErr := rest_errors.NewBadRequestError("invalid json request")
+		http_utils.ResponseError(w, apiErr)
+		return
+	}
+	defer r.Body.Close()
+
+	var query queries.EsQuery
+	if err := json.Unmarshal(bytes, &query); err != nil {
+		apiErr := rest_errors.NewBadRequestError("invalid json request")
+		http_utils.ResponseError(w, apiErr)
+		return
+	}
+
+	items, searchErr := services.ItemsService.Search(query)
+	if searchErr != nil {
+		http_utils.ResponseError(w, searchErr)
+	}
+
+	http_utils.ResponseJson(w, http.StatusOK, items)
 
 }
